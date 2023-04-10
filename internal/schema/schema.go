@@ -112,7 +112,7 @@ func parseSchemaLines(lines []string) Schema {
 				if currentSchemaPropertyName != "" {
 					// save the current one and start fresh
 					if schema.Type == "array" {
-						schema.Items[currentSchemaPropertyName] = schemaProperty
+						schema.Items["$ref"] = schemaProperty
 					} else {
 						schema.Properties[currentSchemaPropertyName] = schemaProperty
 					}
