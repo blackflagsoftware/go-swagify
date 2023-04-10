@@ -1,0 +1,55 @@
+openapi: 3.0.0
+info:
+  title: MyAwesomeApi
+  description: this is my description it is very long
+  termsOfService: https://you-suck.com
+  version: v1
+servers:
+- url: https://gowest.com
+  description: gowest description
+- url: http://goeast.com
+  description: goeast description
+paths:
+  /rate-plan/{id}:
+    parameters:
+    - $ref: '#/components/parameters/EricParam'
+    - $ref: '#/components/parameters/SkippedParam'
+    get:
+      summary: Get Rate Plan By Id
+      description: Get Rate Plan by Rate Plan ID - some other description here
+      parameters:
+      - $ref: '#/components/parameters/ContentTypeParam'
+      - $ref: '#/components/parameters/TenantHeaderParam'
+components:
+  parameters:
+    EricParam:
+      name: Eric
+      in: query
+    SkippedParam:
+      name: Skipped
+      in: path
+  schemas:
+    ExampleRequest:
+      type: object
+      required:
+      - summary
+      properties:
+        description:
+          type: string
+          description: description
+          example: description
+        summary:
+          type: string
+          description: My summary
+          example: summary
+    ExampleResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: My summary
+          example: summary
+        value:
+          type: string
+          description: value
+          example: value
