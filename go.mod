@@ -6,7 +6,6 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/fatih/structtag v1.2.0
 	github.com/stretchr/testify v1.8.0
-	golang.org/x/text v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
