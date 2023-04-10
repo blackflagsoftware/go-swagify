@@ -30,10 +30,10 @@ Using the block comment like this:
 /* go-swagify
 */
 ```
-is a must. Within the block, will depend on the spec you want to create, read on, exmples follow.
+is a must. Within the block, will depend on the spec you want to create, read on, examples follow.
 
 #### Schema
-Since a lot of the spec is based on a struct with your code.  The parsing of the struct is quite different then the rest, let's start with that.
+Since a lot of the spec is based on a struct of your code.  The parsing of the struct is quite different then the rest, let's start with that.
 
 The struct is vital to golang development so struct tags are leveraged to declare the schema spec.  For each field that you want to include in the schema spec.
 
@@ -57,7 +57,7 @@ type User struct {
 }
 ```
 The `go-swagify` block just tells the parser that you want to inspect the struct called `User`
-The `sw:` tag can take list of names (delimited by `'`) if you end the name with `*` then it will make that field for that schema name a required in the spec.
+The `sw:` tag can take list of names (delimited by `;`) if you end the name with `*` then it will make that field for that schema name a required in the spec.
 
 If the `sw` struct is omitted, the field is skipped.
 
@@ -241,7 +241,7 @@ The format for both of these are very similiar, these will fill in `components/r
 */
 
 /* go-swagify
-@@response: UserRequestRef
+@@request: UserRequestRef
 @@desc: the User record to be created
 @@content_name: application/json
 @@content_ref: UserRequest
