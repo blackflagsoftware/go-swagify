@@ -28,31 +28,33 @@ type (
 func BuildServers(comments in.SwagifyComment) map[string][]Server {
 	reg := regexp.MustCompile("(?P<name>[a-zA-Z]+): *?(?P<value>.+)")
 	serverMap := make(map[string][]Server)
-	for name, lines := range comments.Comments {
-		serverMap[name] = []Server{}
-		server := Server{}
-		foundFirst := false
-		for _, line := range lines {
-			matches := reg.FindStringSubmatch(line)
-			nameIdx := reg.SubexpIndex("name")
-			valueIdx := reg.SubexpIndex("value")
-			if len(matches) < 2 {
-				fmt.Println("parse server not formatted:", line)
-				continue
-			}
-			value := strings.TrimSpace(matches[valueIdx])
-			if matches[nameIdx] == "url" {
-				if foundFirst {
-					serverMap[name] = append(serverMap[name], server)
+	for name, lineArray := range comments.Comments {
+		for _, lines := range lineArray {
+			serverMap[name] = []Server{}
+			server := Server{}
+			foundFirst := false
+			for _, line := range lines {
+				matches := reg.FindStringSubmatch(line)
+				nameIdx := reg.SubexpIndex("name")
+				valueIdx := reg.SubexpIndex("value")
+				if len(matches) < 2 {
+					fmt.Println("parse server not formatted:", line)
+					continue
 				}
-				server = Server{Url: value}
-				foundFirst = true
+				value := strings.TrimSpace(matches[valueIdx])
+				if matches[nameIdx] == "url" {
+					if foundFirst {
+						serverMap[name] = append(serverMap[name], server)
+					}
+					server = Server{Url: value}
+					foundFirst = true
+				}
+				if matches[nameIdx] == "description" {
+					server.Description = value
+				}
 			}
-			if matches[nameIdx] == "description" {
-				server.Description = value
-			}
+			serverMap[name] = append(serverMap[name], server)
 		}
-		serverMap[name] = append(serverMap[name], server)
 	}
 	return serverMap
 }

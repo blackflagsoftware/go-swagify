@@ -25,7 +25,9 @@ type (
 	}
 )
 
-/* go-swagify
+/*
+	go-swagify
+
 @@response: <name or status code>
 @@ref: (optional) schema reference
 @@desc: (required, if @@ref not used)
@@ -35,11 +37,13 @@ type (
 */
 func BuildResponse(comments in.SwagifyComment) map[string]Response {
 	responses := make(map[string]Response)
-	for name, lines := range comments.Comments {
-		response := &Response{Content: make(map[string]Content)}
-		parseResponseLines(lines, response)
-		blankOutRef(response)
-		responses[name] = *response
+	for name, lineArray := range comments.Comments {
+		for _, lines := range lineArray {
+			response := &Response{Content: make(map[string]Content)}
+			parseResponseLines(lines, response)
+			blankOutRef(response)
+			responses[name] = *response
+		}
 	}
 	return responses
 }

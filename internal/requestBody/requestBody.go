@@ -13,6 +13,7 @@ type (
 	RequestBody struct {
 		Ref         string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 		Description string             `json:"description,omitempty" yaml:"description,omitempty"`
+		Required    bool               `json:"required,omitempty" yaml:"required,omitempty"`
 		Content     map[string]Content `json:"content,omitempty" yaml:"content,omitempty"`
 	}
 
@@ -25,20 +26,25 @@ type (
 	}
 )
 
-/* go-swagify
+/*
+	go-swagify
+
 @@requestBody: <name or status code>
 @@ref: (optional) schema reference
 @@desc: (required, if @@ref not used)
+@@required: (optional) true/false
 @@content_name: (not required if @@ref is used, else optional) application/json, etc
 @@content_ref: (not required if @@ref is used, else optional) schema reference
 */
 func BuildRequestBody(comments in.SwagifyComment) map[string]RequestBody {
 	requestBodies := make(map[string]RequestBody)
-	for name, lines := range comments.Comments {
-		requestBody := &RequestBody{Content: make(map[string]Content)}
-		parseRequestBodyLines(lines, requestBody)
-		blankOutRef(requestBody)
-		requestBodies[name] = *requestBody
+	for name, lineArray := range comments.Comments {
+		for _, lines := range lineArray {
+			requestBody := &RequestBody{Content: make(map[string]Content)}
+			parseRequestBodyLines(lines, requestBody)
+			blankOutRef(requestBody)
+			requestBodies[name] = *requestBody
+		}
 	}
 	return requestBodies
 }
@@ -62,6 +68,10 @@ func parseRequestBodyLines(lines []string, requestBody *RequestBody) {
 			requestBody.Ref = "#/components/requestBodies/" + value
 		case "desc":
 			requestBody.Description = value
+		case "required":
+			if value == "true" {
+				requestBody.Required = true
+			}
 		case "content_name":
 			if currentContentName != value {
 				if currentContentName != "" {

@@ -22,6 +22,7 @@ type (
 	Operation struct {
 		Summary     string             `json:"summary,omitempty" yaml:"summary,omitempty"`
 		Description string             `json:"description,omitempty" yaml:"description,omitempty"`
+		Tags        []string           `json:"tags,omitempty" yaml:"tags,omitempty"`
 		Parameters  []par.ParameterRef `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 		RequestBody req.ReqSchema      `json:"requestBody,omitempty" yaml:"requestBody,omitempty"`
 		// Servers     []srv.Server    `json:"servers" yaml:"servers"`
@@ -29,7 +30,9 @@ type (
 	}
 )
 
-/* go-swagify
+/*
+	go-swagify
+
 @@operation: <path url>
 @@method: get|put|post|delete|options|head|patch|trace
 @@summary: (optional)
@@ -41,19 +44,21 @@ type (
 */
 func BuildOperations(comments in.SwagifyComment) map[string]OperationBuild {
 	operations := make(map[string]OperationBuild)
-	operationBuild := &OperationBuild{Operations: make(map[string]Operation)}
-	for name, lines := range comments.Comments {
-		err := parseOperationLines(lines, operationBuild)
-		if err != nil {
-			// will never be not nil
-			continue
+	for name, lineArray := range comments.Comments {
+		operationBuild := OperationBuild{Operations: make(map[string]Operation)}
+		for _, lines := range lineArray {
+			err := parseOperationLines(lines, operationBuild)
+			if err != nil {
+				// will never be not nil
+				continue
+			}
 		}
-		operations[name] = *operationBuild
+		operations[name] = operationBuild
 	}
 	return operations
 }
 
-func parseOperationLines(lines []string, operationBuild *OperationBuild) error {
+func parseOperationLines(lines []string, operationBuild OperationBuild) error {
 	operation := Operation{}
 	// go through each line and do logic on
 	reg := regexp.MustCompile("(?P<name>[a-zA-Z_/.]+): *?(?P<value>.+)")
@@ -75,6 +80,8 @@ lines_loop:
 			operation.Summary = value
 		case "description":
 			operation.Description = value
+		case "tags":
+			operation.Tags = strings.Split(value, ";")
 		case "parameters.ref":
 			split := strings.Split(value, ";")
 			parameters := []par.ParameterRef{}

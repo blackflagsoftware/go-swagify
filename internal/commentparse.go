@@ -18,7 +18,7 @@ type (
 	}
 
 	SwagifyComment struct {
-		Comments map[string][]string
+		Comments map[string][][]string
 	}
 )
 
@@ -88,32 +88,54 @@ func ParseSwagifyComment(comments []string) Component {
 			end := len(c) - 2
 			justCommments := strings.TrimSpace(string(c[start:end]))
 			splitComment := strings.Split(justCommments, "@@") // splitting this will give the frist index of "", just ignore
-			cleanComment := strings.TrimSpace(splitComment[1])
-			matches := reg.FindStringSubmatch(cleanComment)
-			compTypeIdx := reg.SubexpIndex("comp_type")
-			nameIdx := reg.SubexpIndex("name")
-			if len(matches) < 2 {
-				// no match
-				perr.AddError(fmt.Sprintf("[Warning] bad format of line: %s", cleanComment))
-				continue
+			lineCount := 1
+		OuterLoop:
+			for {
+				// taking the index [1] of the comments, which should be component: name
+				// make sure the format is correct
+				cleanComment := strings.TrimSpace(splitComment[lineCount])
+				matches := reg.FindStringSubmatch(cleanComment)
+				compTypeIdx := reg.SubexpIndex("comp_type")
+				nameIdx := reg.SubexpIndex("name")
+				if len(matches) < 2 {
+					// no match
+					perr.AddError(fmt.Sprintf("[Warning] bad format of line: %s", cleanComment))
+					lineCount++
+					continue
+				}
+				compType := strings.TrimSpace(matches[compTypeIdx])
+				name := strings.TrimSpace(matches[nameIdx])
+				// save off the rest of the lines per map name unless we
+				_, ok := component.Types[matches[compTypeIdx]]
+				if !ok {
+					component.Types[compType] = SwagifyComment{Comments: make(map[string][][]string)}
+				}
+				cleanedComments := []string{}
+				for {
+					lineCount++
+					if lineCount == len(splitComment) {
+						appendCommentsToComponent(cleanedComments, name, compType, &component)
+						break OuterLoop
+					}
+					cleanedComment := strings.ReplaceAll(splitComment[lineCount], "\n", "")
+					if cleanedComment == "" {
+						appendCommentsToComponent(cleanedComments, name, compType, &component)
+						cleanedComments = []string{}
+						lineCount++
+						continue OuterLoop
+					}
+					cleanedComment = strings.TrimSpace(cleanedComment)
+					cleanedComments = append(cleanedComments, cleanedComment)
+				}
 			}
-			compType := strings.TrimSpace(matches[compTypeIdx])
-			name := strings.TrimSpace(matches[nameIdx])
-			// save off the rest of the lines per map name
-			_, ok := component.Types[matches[compTypeIdx]]
-			if !ok {
-				component.Types[compType] = SwagifyComment{Comments: make(map[string][]string)}
-			}
-			comments := component.Types[compType].Comments
-			// remove \n and rejoin with @@
-			cleanedComments := []string{}
-			for i := 2; i < len(splitComment); i++ {
-				cleanedComment := strings.ReplaceAll(splitComment[i], "\n", " ")
-				cleanedComment = strings.TrimSpace(cleanedComment)
-				cleanedComments = append(cleanedComments, cleanedComment)
-			}
-			comments[name] = cleanedComments
 		}
 	}
 	return component
+}
+
+func appendCommentsToComponent(comments []string, name, compType string, component *Component) {
+	componentComments := component.Types[compType].Comments
+	arrayComments := componentComments[name]
+	arrayComments = append(arrayComments, comments)
+	componentComments[name] = arrayComments
 }

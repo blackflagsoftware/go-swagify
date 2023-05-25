@@ -265,7 +265,7 @@ components:
 ```
 
 #### Path && Operation
-Looking at the spec, the path can multiple operations so defining the path name is the key to using both.
+Looking at the spec, the path can have multiple operations so defining the path name is the key to using both.
 
 Once you define a `path`:
 ```
@@ -281,6 +281,7 @@ Then you can define as may `operation`s as that go under that path name, like so
 @@method: get
 @@summary: Get User
 @@description: Get a single User record by identifier
+@@tags: User
 @@resp_name: 200
 @@resp_ref: UserResponseRef
 @@resp_name: 400
@@ -296,6 +297,8 @@ paths:
 		get:
 			summary: Get User
 			description: Get a single User record by identifier
+			tags:
+			- User
 			responses:
 			"200":
 				$ref: '#/components/responses/UserResponseRef'

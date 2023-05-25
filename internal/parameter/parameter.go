@@ -39,13 +39,15 @@ go-swagify
 
 func BuildParameters(comments in.SwagifyComment) map[string]Parameter {
 	parameter := make(map[string]Parameter)
-	for name, lines := range comments.Comments {
-		Parameter, err := parseParameterLines(lines)
-		if err != nil {
-			// will never be not nil
-			continue
+	for name, lineArray := range comments.Comments {
+		for _, lines := range lineArray {
+			Parameter, err := parseParameterLines(lines)
+			if err != nil {
+				// will never be not nil
+				continue
+			}
+			parameter[name] = Parameter
 		}
-		parameter[name] = Parameter
 	}
 	return parameter
 }
@@ -88,6 +90,8 @@ func parseParameterLines(lines []string) (Parameter, error) {
 		case "schema_example":
 			// TODO: check for type and cast if appropriate, probably do this in schema.go
 			schemaProperty.ExampleStr = value
+		case "schema_enum":
+			schemaProperty.Enum = strings.Split(value, ";")
 		default:
 			perr.AddError(fmt.Sprintf("[Warning] @@parameter: invalid name option: %s", line))
 		}
