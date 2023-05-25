@@ -28,7 +28,9 @@ type (
 	}
 )
 
-/* go-swagify
+/*
+	go-swagify
+
 @@path: <path url>
 @@summary: (optional)
 @@description: (optional)
@@ -36,19 +38,26 @@ type (
 */
 func BuildPaths(comments in.SwagifyComment, operationBuilds map[string]opr.OperationBuild) map[string]Path {
 	paths := make(map[string]Path)
-	path := &Path{}
-	for name, lines := range comments.Comments {
-		err := parsePathLines(lines, path, operationBuilds[name])
-		if err != nil {
-			// will never be not nil
-			continue
+	for name, lineArray := range comments.Comments {
+		for _, lines := range lineArray {
+			path := Path{}
+			err := parsePathLines(lines, &path)
+			if err != nil {
+				// will never be not nil
+				continue
+			}
+			for k, v := range operationBuilds {
+				if k == name {
+					linkOperations(&path, v)
+				}
+			}
+			paths[name] = path
 		}
-		paths[name] = *path
 	}
 	return paths
 }
 
-func parsePathLines(lines []string, path *Path, operationBuilds opr.OperationBuild) error {
+func parsePathLines(lines []string, path *Path) error {
 	// go through each line and do logic on
 	reg := regexp.MustCompile("(?P<name>[a-zA-Z/.]+): *?(?P<value>.+)")
 	for _, line := range lines {
@@ -76,29 +85,29 @@ func parsePathLines(lines []string, path *Path, operationBuilds opr.OperationBui
 			perr.AddError(fmt.Sprintf("[Warning] @@path: invalid name option: %s", line))
 		}
 	}
-	linkOperations(path, operationBuilds)
 	return nil
 }
 
 func linkOperations(path *Path, operationBuilds opr.OperationBuild) {
-	for k, v := range operationBuilds.Operations {
+	for k := range operationBuilds.Operations {
+		value := operationBuilds.Operations[k]
 		switch k {
 		case "get":
-			path.Get = &v
+			path.Get = &value
 		case "put":
-			path.Put = &v
+			path.Put = &value
 		case "post":
-			path.Post = &v
+			path.Post = &value
 		case "delete":
-			path.Delete = &v
+			path.Delete = &value
 		case "options":
-			path.Options = &v
+			path.Options = &value
 		case "head":
-			path.Head = &v
+			path.Head = &value
 		case "patch":
-			path.Patch = &v
+			path.Patch = &value
 		case "trace":
-			path.Trace = &v
+			path.Trace = &value
 		default:
 			perr.AddError(fmt.Sprintf("[Warning] @@path: invalid method: %s", k))
 		}

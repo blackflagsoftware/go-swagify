@@ -12,6 +12,7 @@ import (
 	req "github.com/blackflagsoftware/go-swagify/internal/requestBody"
 	res "github.com/blackflagsoftware/go-swagify/internal/response"
 	sch "github.com/blackflagsoftware/go-swagify/internal/schema"
+	sec "github.com/blackflagsoftware/go-swagify/internal/security"
 	ser "github.com/blackflagsoftware/go-swagify/internal/server"
 )
 
@@ -29,9 +30,10 @@ type (
 	OpenApi struct {
 		Version    string `json:"openapi" yaml:"openapi"`
 		Info       `json:"info" yaml:"info"`
-		Servers    []ser.Server        `json:"servers,omitempty" yaml:"servers,omitempty"`
-		Paths      map[string]pat.Path `json:"paths" yaml:"paths"`
-		Components Component           `json:"components" yaml:"components"`
+		Servers    []ser.Server          `json:"servers,omitempty" yaml:"servers,omitempty"`
+		Paths      map[string]pat.Path   `json:"paths" yaml:"paths"`
+		Components Component             `json:"components" yaml:"components"`
+		Security   []map[string][]string `json:"security,omitempty" yaml:"security,omitempty"`
 	}
 
 	Info struct {
@@ -55,21 +57,24 @@ type (
 	}
 
 	Component struct {
-		Parameters    map[string]par.Parameter   `json:"parameters" yaml:"parameters"`
-		Schemas       map[string]sch.Schema      `json:"schemas" yaml:"schemas"`
-		Responses     map[string]res.Response    `json:"responses" yaml:"responses"`
-		RequestBodies map[string]req.RequestBody `json:"requestBodies" yaml:"requestBodies"`
+		Parameters      map[string]par.Parameter      `json:"parameters" yaml:"parameters"`
+		Schemas         map[string]sch.Schema         `json:"schemas" yaml:"schemas"`
+		Responses       map[string]res.Response       `json:"responses" yaml:"responses"`
+		RequestBodies   map[string]req.RequestBody    `json:"requestBodies" yaml:"requestBodies"`
+		SecuritySchemes map[string]sec.SecurityScheme `json:"securitySchemes" yaml:"securitySchemes"`
 	}
 )
 
 func BuildOpenApi(comments in.SwagifyComment) OpenApi {
 	open := &OpenApi{Version: "3.0.0"}
-	for _, lines := range comments.Comments {
-		err := parseOpenLines(lines, open)
-		if err != nil {
-			// nvever going to not nil
-			perr.AddError(fmt.Sprintf("Unable to parse lines: %s", err))
-			continue
+	for _, lineArray := range comments.Comments {
+		for _, lines := range lineArray {
+			err := parseOpenLines(lines, open)
+			if err != nil {
+				// nvever going to not nil
+				perr.AddError(fmt.Sprintf("Unable to parse lines: %s", err))
+				continue
+			}
 		}
 	}
 	return *open

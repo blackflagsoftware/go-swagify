@@ -18,31 +18,37 @@ func TestBuildResponse(t *testing.T) {
 	}{
 		{
 			"successful: one response (200) non-ref",
-			args{comments: in.SwagifyComment{Comments: map[string][]string{"200": {
-				"desc: This is my description",
-				"content_name: application/json",
-				"content_ref: response_1",
+			args{comments: in.SwagifyComment{Comments: map[string][][]string{"200": {
+				{
+					"desc: This is my description",
+					"content_name: application/json",
+					"content_ref: response_1",
+				},
 			}}}},
 			map[string]Response{"200": {Description: "This is my description", Content: map[string]Content{"application/json": {RefSchema{Ref: "#/components/responses/response_1"}}}}},
 		},
 		{
 			"successful: one response (200) ref",
-			args{comments: in.SwagifyComment{Comments: map[string][]string{"200": {
-				"ref: response_ref_1",
-				"desc: This is my description",
-				"content_name: application/json",
-				"content_ref: response_1",
+			args{comments: in.SwagifyComment{Comments: map[string][][]string{"200": {
+				{
+					"ref: response_ref_1",
+					"desc: This is my description",
+					"content_name: application/json",
+					"content_ref: response_1",
+				},
 			}}}},
 			map[string]Response{"200": {Ref: "#/components/responses/response_ref_1", Content: map[string]Content{}}},
 		},
 		{
 			"successful: multiple responses (200), non-ref",
-			args{comments: in.SwagifyComment{Comments: map[string][]string{"200": {
-				"desc: This is my description",
-				"content_name: application/json",
-				"content_ref: response_1",
-				"content_name: application/text",
-				"content_ref: response_2",
+			args{comments: in.SwagifyComment{Comments: map[string][][]string{"200": {
+				{
+					"desc: This is my description",
+					"content_name: application/json",
+					"content_ref: response_1",
+					"content_name: application/text",
+					"content_ref: response_2",
+				},
 			}}}},
 			map[string]Response{"200": {Description: "This is my description", Content: map[string]Content{"application/json": {RefSchema{Ref: "#/components/responses/response_1"}}, "application/text": {RefSchema{Ref: "#/components/responses/response_2"}}}}},
 		},

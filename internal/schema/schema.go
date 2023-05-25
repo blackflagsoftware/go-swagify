@@ -15,10 +15,13 @@ import (
 
 type (
 	Schema struct {
-		Type       string                    `json:"type,omitempty" yaml:"type,omitempty"`
-		Required   []string                  `json:"required,omitempty" yaml:"required,omitempty"`
-		Properties map[string]SchemaProperty `json:"properties,omitempty" yaml:"properties,omitempty"`
-		Items      map[string]SchemaProperty `json:"items,omitempty" yaml:"items,omitempty"`
+		Type           string                    `json:"type,omitempty" yaml:"type,omitempty"`
+		Required       []string                  `json:"required,omitempty" yaml:"required,omitempty"`
+		Description    string                    `json:"description,omitempty" yaml:"description,omitempty"`
+		Example        string                    `json:"example,omitempty" yaml:"example,omitempty"`
+		Properties     map[string]SchemaProperty `json:"properties,omitempty" yaml:"properties,omitempty"`
+		AddlProperties AdditionalProperty        `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+		Items          map[string]string         `json:"items,omitempty" yaml:"items,omitempty"`
 	}
 
 	// TODO: if type is object or array may need to have self reference
@@ -28,13 +31,19 @@ type (
 		Description string      `json:"description,omitempty" yaml:"description,omitempty"`
 		Example     interface{} `json:"example,omitempty" yaml:"example,omitempty"`
 		ExampleStr  string      `json:"-" yaml:"-"`
+		Enum        []string    `json:"enum,omitempty" yaml:"enum,omitempty"`
+	}
+
+	AdditionalProperty struct {
+		Type  string            `json:"type,omitempty" yaml:"type,omitempty"`
+		Items map[string]string `json:"items,omitempty" yaml:"items,omitempty"`
 	}
 )
 
 /* go-swagify
 @@schema: <name>
 @@type: (required) [object | array]
-@@prop_name: <name>
+@@prop_name: <name> (not needed with type => array)
 @@prop_ref: <schema ref>
 @@prop_req: (optional) add to the list of required in Schema; if false just leave omit
 @@prop_type: (string) [object | array | string | number | etc]
@@ -72,9 +81,11 @@ sw_ex:"some example here"
 */
 
 func BuildSchema(comments in.SwagifyComment, schemas map[string]Schema) {
-	for name, lines := range comments.Comments {
-		schema := parseSchemaLines(lines)
-		schemas[name] = schema
+	for name, lineArray := range comments.Comments {
+		for _, lines := range lineArray {
+			schema := parseSchemaLines(lines)
+			schemas[name] = schema
+		}
 	}
 	return
 }
@@ -90,10 +101,10 @@ func BuildSchemaStruct(myStructs []in.MyStruct) map[string]Schema {
 }
 
 func parseSchemaLines(lines []string) Schema {
-	schema := Schema{Properties: make(map[string]SchemaProperty), Items: make(map[string]SchemaProperty)}
+	schema := Schema{Properties: make(map[string]SchemaProperty), Items: make(map[string]string)}
 	// go through each line and do logic on
 	reg := regexp.MustCompile("(?P<name>[a-zA-Z_/.]+): *?(?P<value>.+)")
-	currentSchemaPropertyName := ""
+	currentPropertyName := ""
 	schemaProperty := SchemaProperty{}
 	for _, line := range lines {
 		matches := reg.FindStringSubmatch(line)
@@ -107,45 +118,54 @@ func parseSchemaLines(lines []string) Schema {
 		switch matches[nameIdx] {
 		case "type":
 			schema.Type = validateType(value)
+		case "desc":
+			schema.Description = value
+		case "ex":
+			schema.Example = value
 		case "prop_name":
-			if currentSchemaPropertyName != value {
-				if currentSchemaPropertyName != "" {
+			if currentPropertyName != value {
+				if currentPropertyName != "" {
 					// save the current one and start fresh
 					if schema.Type == "array" {
-						schema.Items["$ref"] = schemaProperty
+						schema.Items["$ref"] = schemaProperty.Ref
 					} else {
-						schema.Properties[currentSchemaPropertyName] = schemaProperty
+						schema.Properties[currentPropertyName] = schemaProperty
 					}
 					schemaProperty = SchemaProperty{}
 				}
 			}
-			currentSchemaPropertyName = value
+			currentPropertyName = value
 		case "prop_ref":
 			schemaProperty.Ref = "#/components/schemas/" + value
 			if schema.Type == "array" {
-				schema.Items[currentSchemaPropertyName] = schemaProperty
+				schema.Items["$ref"] = schemaProperty.Ref
 			} else {
-				schema.Properties[currentSchemaPropertyName] = schemaProperty
+				schema.Properties[currentPropertyName] = schemaProperty
 			}
 		case "prop_type":
 			schemaProperty.Type = value
 		case "prop_req":
 			if value == "true" {
 				// just in case they add it with false or anything else
-				schema.Required = append(schema.Required, currentSchemaPropertyName)
+				schema.Required = append(schema.Required, currentPropertyName)
 			}
 		case "prop_desc":
 			schemaProperty.Description = value
 		case "prop_ex":
 			schemaProperty.Example = exampleConv(schemaProperty.Type, value)
+		case "addl_prop_ref":
+			ref := "#/components/schemas/" + value
+			schema.AddlProperties = AdditionalProperty{Type: "array", Items: map[string]string{"$ref": ref}} // TODO: this is only used to handle a map[string]array
 		default:
 			perr.AddError(fmt.Sprintf("[Warning] @@schema: invalid name option: %s", line))
 		}
 	}
 	if schema.Type == "array" {
-		schema.Items[currentSchemaPropertyName] = schemaProperty
+		schema.Items["$ref"] = schemaProperty.Ref
 	} else {
-		schema.Properties[currentSchemaPropertyName] = schemaProperty
+		if currentPropertyName != "" {
+			schema.Properties[currentPropertyName] = schemaProperty
+		}
 	}
 	blankOutRef(&schema)
 	return schema
@@ -153,13 +173,6 @@ func parseSchemaLines(lines []string) Schema {
 
 func blankOutRef(schema *Schema) {
 	for _, prop := range schema.Properties {
-		if prop.Ref != "" {
-			prop.Type = ""
-			prop.Description = ""
-			prop.Example = nil
-		}
-	}
-	for _, prop := range schema.Items {
 		if prop.Ref != "" {
 			prop.Type = ""
 			prop.Description = ""
@@ -192,8 +205,17 @@ func parseTag(fieldName, fieldType, fieldTag string, schemas map[string]Schema) 
 			schema.Required = append(schema.Required, lowerCaseFieldName)
 			schemas[name] = schema
 		}
-		docType, desc, example := parseSwagifyTag(fieldName, fieldType, tags)
+		var example interface{}
+		docType, desc, ref := "", "", ""
+		swRef, errRef := tags.Get("sw_ref")
+		if swRef == nil || swRef.Value() == "" || errRef != nil {
+			docType, desc, example = parseSwagifyTag(fieldName, fieldType, tags)
+		}
+		if swRef != nil {
+			ref = "#/components/schemas/" + swRef.Value()
+		}
 		schemaProperty := SchemaProperty{
+			Ref:         ref,
 			Type:        docType,
 			Description: desc,
 			Example:     example,
@@ -246,6 +268,10 @@ func parseSwagifyTag(fieldName, fieldType string, tags *structtag.Tags) (docType
 		}
 	} else {
 		example = exampleConv(docType, swEx.Name)
+		if len(swEx.Options) > 0 && docType == "string" && swEx.Options[0] != "omitempty" {
+			// used as an example and may have a ',' in the string
+			example = example.(string) + ", " + strings.TrimSpace(strings.Join(swEx.Options, ", "))
+		}
 	}
 	return
 }
